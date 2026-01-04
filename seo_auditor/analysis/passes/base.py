@@ -2,12 +2,15 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
-import json
 import pandas as pd
+import structlog
 from ...clients.claude_client import ClaudeClient
 from ...models.analysis import AnalysisPassResult, SEOIssue, AffectedURL
 from ...models.enums import AnalysisPassType
+from ...utils import extract_json_from_response
 from ..chunking import DataChunker
+
+logger = structlog.get_logger(__name__)
 
 class BaseAnalysisPass(ABC):
     PASS_TYPE: AnalysisPassType
@@ -51,26 +54,43 @@ class BaseAnalysisPass(ABC):
                                    input_tokens=total_in, output_tokens=total_out)
     
     def _parse_response(self, content: str) -> dict:
-        try:
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0]
-            return json.loads(content)
-        except: return {"issues": []}
-    
+        """Parse Claude response, extracting JSON from markdown if needed."""
+        return extract_json_from_response(
+            content,
+            default={"issues": []},
+            context=f"{self.PASS_TYPE.value}_analysis",
+        )
+
     def _convert_issues(self, raw: list[dict]) -> list[SEOIssue]:
+        """Convert raw issue dicts to SEOIssue models with validation."""
         issues = []
-        for r in raw:
+        for idx, r in enumerate(raw):
             try:
-                affected = [AffectedURL(url=u) if isinstance(u, str) else AffectedURL(**u) 
-                           for u in r.get("affected_urls", [])[:50]]
-                issues.append(SEOIssue(
-                    id=r.get("id", f"{self.PASS_TYPE.value}_{len(issues)}"),
-                    category=r.get("category", self.PASS_TYPE.value),
-                    title=r.get("title", "Issue"), description=r.get("description", ""),
-                    impact=r.get("impact", ""), priority=r.get("priority", "medium"),
-                    effort=r.get("effort", "moderate"), affected_urls=affected,
-                    affected_count=r.get("affected_count", len(affected)),
-                    recommendation=r.get("recommendation", ""),
-                    implementation_steps=r.get("implementation_steps", [])))
-            except: pass
+                affected = [
+                    AffectedURL(url=u) if isinstance(u, str) else AffectedURL(**u)
+                    for u in r.get("affected_urls", [])[:50]
+                ]
+                issues.append(
+                    SEOIssue(
+                        id=r.get("id", f"{self.PASS_TYPE.value}_{len(issues)}"),
+                        category=r.get("category", self.PASS_TYPE.value),
+                        title=r.get("title", "Issue"),
+                        description=r.get("description", ""),
+                        impact=r.get("impact", ""),
+                        priority=r.get("priority", "medium"),
+                        effort=r.get("effort", "moderate"),
+                        affected_urls=affected,
+                        affected_count=r.get("affected_count", len(affected)),
+                        recommendation=r.get("recommendation", ""),
+                        implementation_steps=r.get("implementation_steps", []),
+                    )
+                )
+            except (ValueError, TypeError, KeyError) as e:
+                logger.warning(
+                    "Failed to parse issue",
+                    pass_type=self.PASS_TYPE.value,
+                    issue_index=idx,
+                    error=str(e),
+                    raw_issue=str(r)[:200],
+                )
         return issues
