@@ -144,3 +144,141 @@ Use `pytest-asyncio` for async test functions (configured with `asyncio_mode = "
 - **Type hints**: Use throughout, run mypy for validation
 - **Formatting**: Black with default settings
 - **Linting**: Ruff for fast linting
+
+---
+
+## Missing Features & Roadmap
+
+### Priority 1: Core Functionality Gaps
+
+#### Additional Parsers (ingestion/parsers/)
+Currently only `internal_html.py` exists. Need to add:
+
+| Parser | Purpose | SF Export File |
+|--------|---------|----------------|
+| `redirects.py` | Redirect chains, loops, status codes | `redirect_chains.csv` |
+| `images.py` | Alt text, file sizes, optimization | `images_missing_alt_text.csv`, `images_over_100kb.csv` |
+| `page_titles.py` | Duplicate, missing, length issues | `page_titles_*.csv` |
+| `meta_descriptions.py` | Duplicate, missing, length | `meta_descriptions_*.csv` |
+| `canonicals.py` | Self-referencing, conflicts | `canonicals.csv` |
+| `hreflang.py` | International SEO issues | `hreflang.csv` |
+| `structured_data.py` | Schema.org validation | `structured_data.csv` |
+
+#### Enhanced Prompt Templates (config/prompts/)
+Current prompts are minimal. Each should include:
+- Detailed analysis instructions
+- Explicit JSON output schema
+- Example outputs
+- Edge case handling
+- Severity classification criteria
+
+### Priority 2: Export & Output
+
+#### PDF Export (output/exporters/)
+The `exporters/` directory is empty. Need:
+
+```python
+# output/exporters/pdf.py
+class PDFExporter:
+    def export(self, report: AuditReport, output_path: Path) -> None:
+        # Use weasyprint (already in optional deps)
+        pass
+```
+
+#### Dashboard Interactivity
+Current dashboard is static HTML. Enhancements needed:
+- Client-side filtering by category/priority/effort
+- Sortable issue tables
+- Drill-down into affected URLs
+- Export issues to CSV
+- Interactive charts (Chart.js or similar)
+- Dark mode toggle
+- Print-friendly styles
+
+### Priority 3: Additional Analysis Passes
+
+| Pass | Focus | Implementation Notes |
+|------|-------|---------------------|
+| Images | Alt text, lazy loading, WebP, srcset | Add `IMAGES` to `AnalysisPassType` |
+| Structured Data | Schema.org validation, rich snippets | Parse JSON-LD from crawl |
+| Mobile | Viewport, tap targets, CLS | Requires JS rendering in SF |
+| International | Hreflang, lang attributes | Cross-reference with sitemap |
+| Security | HTTPS, mixed content, headers | Parse security.csv from SF |
+
+### Priority 4: Infrastructure & DevOps
+
+#### CI/CD Configuration
+```yaml
+# .github/workflows/ci.yml
+- pytest with coverage reporting
+- mypy type checking
+- ruff linting
+- black formatting check
+```
+
+#### Docker Support
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim
+# Note: Screaming Frog requires GUI or headless X server
+```
+
+#### Pre-commit Hooks
+```yaml
+# .pre-commit-config.yaml
+- black
+- ruff
+- mypy
+- pytest (fast subset)
+```
+
+### Priority 5: Advanced Features
+
+| Feature | Description |
+|---------|-------------|
+| Audit Diffing | Compare two audits, show changes |
+| Incremental Crawls | Resume interrupted crawls |
+| API Mode | FastAPI wrapper for programmatic access |
+| Scheduled Audits | Cron-based recurring audits |
+| Slack/Email Alerts | Notify on critical issues |
+| Custom Rules Engine | User-defined SEO rules |
+| Competitor Analysis | Compare against competitor crawls |
+
+---
+
+## Implementation Path
+
+### Phase 1: Foundation (Quick Wins)
+1. Add `.env.example` template file
+2. Implement remaining parsers (start with `images.py`, `redirects.py`)
+3. Enhance prompt templates with detailed instructions
+4. Add PDF exporter using weasyprint
+
+### Phase 2: Dashboard Enhancement
+1. Add client-side JavaScript for filtering/sorting
+2. Implement Chart.js visualizations
+3. Add issue export functionality
+4. Improve mobile responsiveness
+
+### Phase 3: Analysis Expansion
+1. Add Images analysis pass
+2. Add Structured Data analysis pass
+3. Implement parallel analysis pass execution
+4. Add comparison/diffing between audits
+
+### Phase 4: Production Readiness
+1. Add CI/CD pipeline
+2. Docker containerization
+3. Comprehensive integration tests
+4. API mode with FastAPI
+5. Documentation site
+
+---
+
+## Known Limitations
+
+1. **Screaming Frog dependency**: Requires licensed SF installation
+2. **Single-threaded crawling**: SF CLI doesn't support parallel crawls
+3. **No JavaScript rendering by default**: Set `sf_render_javascript: true` in settings
+4. **Rate limiting**: Claude API limits may slow large site analysis
+5. **Memory usage**: Large crawls (100k+ URLs) may require chunking optimization
