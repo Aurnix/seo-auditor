@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SEO Audit Report - {{ report.site_url }}</title>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>SEO Audit Report</h1>
+        <p><strong>{{ report.site_url }}</strong></p>
+        <p>Generated: {{ report.generated_at.strftime('%B %d, %Y at %H:%M') }}</p>
+    </div>
+
+    <!-- Health Score Section -->
+    <h2>Overall Health Score</h2>
+    <div>
+        {% set score = report.health_score.overall %}
+        <span class="score-box {% if score >= 70 %}good{% elif score >= 40 %}medium{% else %}poor{% endif %}">
+            {{ score }}
+        </span>
+        <div style="display: inline-block; vertical-align: top; max-width: 70%;">
+            <h3 style="margin-top: 0;">{{ report.executive_summary.headline }}</h3>
+            <p>{{ report.health_score.explanation }}</p>
+        </div>
+    </div>
+
+    <div class="stats-grid" style="margin-top: 1em;">
+        <div class="stat">
+            <div class="stat-value">{{ report.health_score.technical }}</div>
+            <div class="stat-label">Technical</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ report.health_score.content }}</div>
+            <div class="stat-label">Content</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ report.health_score.links }}</div>
+            <div class="stat-label">Links</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ report.issues.total_count }}</div>
+            <div class="stat-label">Total Issues</div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <h2>Executive Summary</h2>
+
+    <div style="display: table; width: 100%;">
+        <div style="display: table-cell; width: 48%; vertical-align: top;">
+            <h3>Key Findings</h3>
+            <ul class="findings-list">
+                {% for finding in report.executive_summary.key_findings %}
+                <li>{{ finding }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div style="display: table-cell; width: 4%;"></div>
+        <div style="display: table-cell; width: 48%; vertical-align: top;">
+            <h3>Quick Wins</h3>
+            <ul class="findings-list quick-wins-list">
+                {% for win in report.executive_summary.quick_wins %}
+                <li>{{ win }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    {% if report.executive_summary.overall_assessment %}
+    <p><strong>Assessment:</strong> {{ report.executive_summary.overall_assessment }}</p>
+    {% endif %}
+
+    <!-- Crawl Summary -->
+    <h2>Crawl Summary</h2>
+    <div class="stats-grid">
+        <div class="stat">
+            <div class="stat-value">{{ report.crawl_summary.total_urls }}</div>
+            <div class="stat-label">Total URLs</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color: #16a34a;">{{ report.crawl_summary.status_2xx }}</div>
+            <div class="stat-label">2xx OK</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color: #d97706;">{{ report.crawl_summary.status_3xx }}</div>
+            <div class="stat-label">3xx Redirects</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color: #dc2626;">{{ report.crawl_summary.status_4xx + report.crawl_summary.status_5xx }}</div>
+            <div class="stat-label">4xx/5xx Errors</div>
+        </div>
+    </div>
+
+    <table class="data-table">
+        <tr>
+            <th>Metric</th>
+            <th>Count</th>
+        </tr>
+        <tr>
+            <td>Missing Titles</td>
+            <td>{{ report.crawl_summary.missing_title }}</td>
+        </tr>
+        <tr>
+            <td>Missing H1</td>
+            <td>{{ report.crawl_summary.missing_h1 }}</td>
+        </tr>
+        <tr>
+            <td>Thin Content Pages (&lt;300 words)</td>
+            <td>{{ report.crawl_summary.thin_content_pages }}</td>
+        </tr>
+        {% if report.has_gsc_data %}
+        <tr>
+            <td>Total Clicks (90 days)</td>
+            <td>{{ "{:,}".format(report.crawl_summary.total_clicks) }}</td>
+        </tr>
+        <tr>
+            <td>Total Impressions (90 days)</td>
+            <td>{{ "{:,}".format(report.crawl_summary.total_impressions) }}</td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <!-- Issues Section -->
+    <div class="page-break"></div>
+    <h2>Issues Found ({{ report.issues.total_count }})</h2>
+
+    {% set issue_count = 0 %}
+    {% for issue in report.all_issues %}
+    {% if issue_count < 30 %}
+    <div class="issue-card priority-{{ issue.priority.value }}">
+        <div style="margin-bottom: 0.5em;">
+            <span class="priority-badge {{ issue.priority.value }}">{{ issue.priority.value }}</span>
+            <strong style="margin-left: 0.5em;">{{ issue.title }}</strong>
+            <span style="float: right; color: #6b7280;">{{ issue.affected_count }} URLs affected</span>
+        </div>
+        <p style="margin: 0.5em 0;">{{ issue.description }}</p>
+        <p style="margin: 0.5em 0; font-size: 9pt;"><strong>Recommendation:</strong> {{ issue.recommendation }}</p>
+        {% if issue.affected_urls[:5] %}
+        <p style="margin: 0.5em 0; font-size: 8pt; color: #6b7280;">
+            <strong>Example URLs:</strong>
+            {% for url in issue.affected_urls[:3] %}
+            {{ url.url }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {% if issue.affected_urls|length > 3 %}
+            <em>and {{ issue.affected_urls|length - 3 }} more...</em>
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+    {% set issue_count = issue_count + 1 %}
+    {% endif %}
+    {% endfor %}
+
+    {% if report.all_issues|length > 30 %}
+    <p style="color: #6b7280; font-style: italic;">
+        Showing 30 of {{ report.all_issues|length }} issues. See HTML report for complete list.
+    </p>
+    {% endif %}
+
+    <!-- Action Plan -->
+    <div class="page-break"></div>
+    <h2>Recommended Action Plan</h2>
+    <p>Prioritized tasks based on impact and effort required:</p>
+
+    {% for action in report.action_plan %}
+    <div class="action-item">
+        <div class="action-rank">{{ action.rank }}</div>
+        <div class="action-content">
+            <strong>{{ action.title }}</strong>
+            <p style="margin: 0.25em 0;">{{ action.description }}</p>
+            <p style="margin: 0.25em 0; font-size: 9pt; color: #6b7280;">
+                <strong>Priority:</strong> {{ action.priority.value|title }} |
+                <strong>Effort:</strong> {{ action.effort.value|replace('_', ' ')|title }} |
+                <strong>Affected:</strong> {{ action.affected_urls_count }} URLs
+            </p>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if report.executive_summary.strategic_recommendations %}
+    <h3>Strategic Recommendations</h3>
+    <ul class="findings-list">
+        {% for rec in report.executive_summary.strategic_recommendations %}
+        <li>{{ rec }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Generated by SEO Auditor | Tokens used: {{ "{:,}".format(report.total_tokens_used) }}</p>
+        <p>Report ID: {{ report.report_id }}</p>
+    </div>
+</body>
+</html>
