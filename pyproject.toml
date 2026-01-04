@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Automated SEO audits powered by Screaming Frog and Claude"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
+license = "MIT"
 dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.5.0",
@@ -33,16 +33,35 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "pytest-cov>=4.1.0",
     "black>=23.9.0",
-    "ruff>=0.0.292",
+    "ruff>=0.1.9",
     "mypy>=1.5.0",
+    "pre-commit>=3.6.0",
 ]
 
 [project.scripts]
 seo-audit = "seo_auditor.main:cli"
 
+[tool.setuptools.packages.find]
+include = ["seo_auditor*"]
+exclude = ["demo*", "tests*"]
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

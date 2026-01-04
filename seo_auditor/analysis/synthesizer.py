@@ -1,14 +1,16 @@
 """Synthesize all analyses into report."""
-import json
 import uuid
 from datetime import datetime
-from typing import Optional
 import pandas as pd
+import structlog
 from ..clients.claude_client import ClaudeClient
 from ..models.analysis import AnalysisPassResult, SEOIssue, ActionItem
 from ..models.report import AuditReport, HealthScore, ExecutiveSummary, IssuesByCategory, ChartData
 from ..models.crawl import CrawlSummary
 from ..models.enums import Priority
+from ..utils import extract_json_from_response
+
+logger = structlog.get_logger(__name__)
 
 SYSTEM_PROMPT = """Synthesize SEO analysis into a report. Output JSON:
 {"health_score": {"overall": 72, "technical": 80, "content": 65, "links": 75, "explanation": "..."},
@@ -63,11 +65,8 @@ class Synthesizer:
             has_gsc_data="clicks" in crawl_data.columns)
     
     def _parse(self, content: str) -> dict:
-        try:
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0]
-            return json.loads(content)
-        except: return {}
+        """Parse synthesis response from Claude."""
+        return extract_json_from_response(content, default={}, context="synthesis")
     
     def _build_charts(self, df: pd.DataFrame, issues: list) -> ChartData:
         data = ChartData()
